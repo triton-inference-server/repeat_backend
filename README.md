@@ -31,7 +31,11 @@
 # Triton Inference Server Repeat Backend
 
 An example Triton backend that demonstrates sending zero, one, or
-multiple responses for each request.
+multiple responses for each request. You can learn more about backends
+in the [backend
+repo](https://github.com/triton-inference-server/backend). Ask
+questions or report problems in the main Triton [issues
+page](https://github.com/triton-inference-server/server/issues).
 
 Use cmake to build and install in a local directory.
 
