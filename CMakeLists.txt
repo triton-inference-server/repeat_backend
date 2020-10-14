@@ -106,7 +106,8 @@ target_compile_options(
 target_link_libraries(
   triton-repeat-backend
   PRIVATE
-    triton-backend-utils  # from repo-backend
+    triton-core-serverstub  # from repo-core
+    triton-backend-utils    # from repo-backend
 )
 
 set_target_properties(
