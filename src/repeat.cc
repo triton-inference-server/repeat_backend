@@ -1,4 +1,4 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -207,7 +207,7 @@ ModelState::ValidateModelConfig()
       std::string("expected 2 outputs, got ") +
           std::to_string(outputs.ArraySize()));
 
-  // Here we rely on the model configuation listing the inputs and
+  // Here we rely on the model configuration listing the inputs and
   // outputs in a specific order, which we shouldn't really require...
   common::TritonJson::Value in, delay, wait, out, idx;
   RETURN_IF_ERROR(inputs.IndexAsObject(0, &in));
@@ -757,7 +757,7 @@ TRITONBACKEND_ModelInstanceExecute(
 
   // This backend specifies BLOCKING execution policy. That means that
   // we should not return from this function until this instance has
-  // completed prcoessing 'requests'. On return from this function,
+  // completed processing 'requests'. On return from this function,
   // Triton will automatically show 'instance' as available to execute
   // a new batch of requests.
 
