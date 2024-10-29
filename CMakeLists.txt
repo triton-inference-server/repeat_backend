@@ -104,7 +104,7 @@ target_compile_features(triton-repeat-backend PRIVATE cxx_std_${TRITON_MIN_CXX_S
 target_compile_options(
   triton-repeat-backend PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-    -Wall -Wextra -Wno-unused-parameter -Wno-error=maybe-uninitialized -Werror>
+    -Wall -Wextra -Wno-unused-parameter>
 )
 
 target_link_libraries(
