@@ -40,7 +40,7 @@ vulnerability.**
 2. **Email:** [psirt@nvidia.com](mailto:psirt@nvidia.com). Please encrypt
    sensitive reports with the
    [NVIDIA PGP key](https://www.nvidia.com/en-us/security/pgp-key).
-3. **GitHub Private Vulnerability Reporting:** use the "Report a
+3. **GitHub Private Vulnerability Reporting (where enabled):** use the "Report a
    vulnerability" button on the Security tab of this repository.
 
 **OEM partners should contact their NVIDIA Customer Program Manager.**
