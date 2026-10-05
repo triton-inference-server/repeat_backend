@@ -30,131 +30,51 @@
 
 ## Reporting a Vulnerability
 
-NVIDIA takes the security of its software seriously. To report a potential
-security vulnerability in this project or any NVIDIA product, use one of the
-following channels. **Do not open a public GitHub issue for a security
-vulnerability.**
+NVIDIA is dedicated to the security and trust of our software products and services, including all source code repositories managed through our organization.
 
-1. **NVIDIA Vulnerability Disclosure Program (preferred):**
-   <https://www.nvidia.com/en-us/security/>
-2. **Email:** [psirt@nvidia.com](mailto:psirt@nvidia.com). Please encrypt
-   sensitive reports with the
-   [NVIDIA PGP key](https://www.nvidia.com/en-us/security/pgp-key).
-3. **GitHub Private Vulnerability Reporting (where enabled):** use the "Report a
-   vulnerability" button on the Security tab of this repository.
+To report a potential security vulnerability, please use one of the following channels:
 
-**OEM partners should contact their NVIDIA Customer Program Manager.**
+1. **NVIDIA Vulnerability Disclosure Program** (preferred): https://www.nvidia.com/en-us/security/
+2. **Web form:** [Security Vulnerability Submission Form](https://www.nvidia.com/object/submit-security-vulnerability.html)
+3. **Email:** [NVIDIA PSIRT](mailto:psirt@nvidia.com). Please encrypt sensitive reports with NVIDIA's [PGP key](https://www.nvidia.com/en-us/security/pgp-key).
+4. **GitHub Private Vulnerability Reporting (where enabled):** use the "Report a vulnerability" button on the Security tab of this repository.
+
+**Do not open a public issue or pull request to report a vulnerability.**
 
 Please include:
 
-1. Product name and version or branch that contains the vulnerability
-2. Type of vulnerability (for example denial of service or memory safety)
-3. Instructions to reproduce the vulnerability
-4. Proof-of-concept or exploit code, if available
-5. Potential impact, including how an attacker could exploit it
+* Product or component name and version or branch
+* Type of vulnerability
+* Steps to reproduce
+* Proof of concept, if available
+* Potential impact and how it could be exploited
 
-NVIDIA PSIRT acknowledges reports, assesses severity, coordinates a fix and
-disclosure timeline with the reporter, and publishes advisories. See
-<https://www.nvidia.com/en-us/security/> for past security bulletins and
-notices.
+See https://www.nvidia.com/en-us/security/ for past NVIDIA Security Bulletins and Notices.
 
 ## Security Architecture and Context
 
-**Project:** Triton Inference Server Repeat Backend (`repeat_backend`).
+**Project:** An example Triton backend that demonstrates sending zero, one, or multiple responses for each request.
 
-**Software classification:** Library. It is a shared object
-(`libtriton_repeat.so`) loaded in-process by Triton Inference Server through
-the TRITONBACKEND C API.
+**Software type:** Software component (library, backend, client or tool) used as part of a Triton Inference Server deployment.
 
-**Purpose:** An example backend that demonstrates decoupled model execution,
-where each request produces zero or more responses. For each element of input
-`IN` it sends one response containing `OUT` and `IDX` after a per-element
-`DELAY` (milliseconds). Input `WAIT` controls how long the backend holds the
-request before releasing it. It is intended for testing and demonstration, not
-for production workloads.
+**Security boundaries:** The main security boundary is between this component and the data, models and configuration it is given, and between it and the server or application that hosts it.
 
-**Primary security responsibility:** Validate the model configuration and
-per-request tensor shapes, and manage the lifetime of per-request buffers,
-response factories and response threads, so that requests cannot corrupt
-memory or exhaust the host process.
+**Repository Exposure Classification:** Public.
 
-**Key security boundaries and interfaces:**
-
-- **TRITONBACKEND API boundary.** The backend has no network listener, file
-  input, authentication or persistent storage. All data arrives through
-  Triton as tensors (`IN`, `DELAY`, `WAIT`) and the model configuration
-  (`src/repeat.cc`). Authentication, authorization, TLS and request
-  size limits are the responsibility of the hosting Triton server.
-- **In-process trust.** The backend runs in the Triton server process with
-  the server's privileges. A defect in the backend affects the whole server.
-
-**Repository Exposure Classification:** Public. Basis: the GitHub repository
-visibility is public.
-
-**Service Exposure Classification:** Internal-Isolated (medium confidence).
-Basis: example and test backend with no network exposure of its own, handling
-no sensitive data. If it is deployed inside a service exposed to untrusted
-clients, the exposure of that service governs.
+**Service Exposure Classification:** Deployment-dependent. Exposure depends on how the software is deployed and configured by the operator.
 
 ## Threat Model
 
-Ordered by assessed severity and likelihood.
-
-1. **Resource exhaustion through unbounded delays and per-request threads:**
-   `ModelInstanceState::ProcessRequest` starts one detached thread per request
-   and `ResponseThread` sleeps for the client-supplied `DELAY` values. The
-   `WAIT` value likewise blocks `TRITONBACKEND_ModelInstanceExecute`. No upper
-   bound is enforced, so a client able to send inference requests can tie up
-   threads and instance execution slots, degrading availability of the server.
-2. **Memory-management defects in request buffers:** `IN` and `DELAY` copies
-   are allocated as arrays but held in `std::unique_ptr<int32_t>`, which
-   releases them with a non-array deleter. This is undefined behavior
-   (CWE-762) on every request. The element count is derived from the `IN`
-   byte size and is also used for `DELAY`, so correctness depends on the
-   shape check performed per request in `ProcessRequest`.
-3. **Unload hang from an unbalanced in-flight counter:** `ResponseThread`
-   returns early on a response-creation error without decrementing
-   `inflight_thread_count_`. `~ModelInstanceState` waits for that counter to
-   reach zero, so model unload or server shutdown can block indefinitely
-   after such an error.
-4. **Oversized delay values and unsigned-to-signed conversion:** the model
-   configuration requires `DELAY` to be `UINT32`, so clients cannot send
-   negative values. The backend copies the values into signed `int32_t`
-   storage and converts them to a duration. Values up to `INT32_MAX`
-   milliseconds (about 24.8 days) keep a response thread alive for that long.
-   Values above `INT32_MAX` wrap to negative, and the sleep returns
-   immediately instead of waiting, so the intended delay is skipped.
-5. **Information exposure through logs:** `ValidateModelConfig` writes the
-   full model configuration to the server log at INFO level, and per-response
-   log lines are emitted for every request. Operators who place sensitive
-   values in model configuration parameters should be aware they appear in
-   logs.
-6. **Supply chain:** The build fetches the `backend`, `core` and `common`
-   repositories by branch or tag at configure time (`CMakeLists.txt`). A
-   mutable branch reference means the resulting binary depends on upstream
-   state at build time.
+1. **Untrusted input:** Requests, models, configuration or data supplied to this component may be malformed or malicious, and could cause crashes, memory errors or unintended behavior if not validated.
+2. **Supply chain:** Source and build dependencies fetched at build or install time may be compromised, outdated or unpinned.
+3. **Network exposure:** When deployed behind a network-facing server, endpoints may be reachable by untrusted clients. This component does not by itself provide authentication, authorization or encryption.
+4. **Resource exhaustion:** Oversized or numerous requests may consume memory, compute or other resources and degrade availability.
+5. **Information disclosure:** Logs, metrics and error messages may reveal sensitive data such as paths, identifiers or request content.
 
 ## Critical Security Assumptions
 
-- **The hosting Triton server authenticates and authorizes clients.** This
-  backend implements no access control of its own.
-- **Request sizes and rates are limited upstream.** The backend does not cap
-  the number of elements in `IN`, the values in `DELAY` or `WAIT`, or the
-  number of concurrent requests.
-- **Clients are trusted not to supply hostile timing values.** Delay values
-  are used as given.
-- **Model configuration is trusted.** Anyone who can load a model into the
-  model repository can load code into the Triton process, and the backend
-  only checks that the configuration matches the expected tensor names,
-  shapes and datatypes.
-- **The TRITONBACKEND API behaves as documented.** Buffers returned by Triton
-  are assumed valid for the sizes requested, and the backend only handles
-  output buffers in CPU memory.
-- **This backend is not a production component.** It is provided as a
-  reference and test fixture and is not hardened for untrusted workloads.
-
-## Supported Versions
-
-Security fixes are applied to the default branch and to the current Triton
-release branch. Use the release of this backend that matches your Triton
-Inference Server release.
+* The component is deployed in a trusted environment or behind a gateway that provides authentication, authorization, TLS and rate limiting.
+* Models, configuration and other inputs come from trusted sources.
+* Dependencies and the build environment are kept up to date and obtained from trusted sources.
+* Operators protect secrets, certificates and credentials, and restrict access to logs and metrics.
+* Host operating system, driver and hardware security are the operator's responsibility.
