@@ -117,9 +117,13 @@ Ordered by assessed severity and likelihood.
    `inflight_thread_count_`. `~ModelInstanceState` waits for that counter to
    reach zero, so model unload or server shutdown can block indefinitely
    after such an error.
-4. **Negative or oversized delay values:** `DELAY` is read as a signed 32-bit
-   value and converted to a duration. Negative values are not rejected, and
-   very large values keep a thread alive for a long time.
+4. **Oversized delay values and unsigned-to-signed conversion:** the model
+   configuration requires `DELAY` to be `UINT32`, so clients cannot send
+   negative values. The backend copies the values into signed `int32_t`
+   storage and converts them to a duration. Values up to `INT32_MAX`
+   milliseconds (about 24.8 days) keep a response thread alive for that long.
+   Values above `INT32_MAX` wrap to negative, and the sleep returns
+   immediately instead of waiting, so the intended delay is skipped.
 5. **Information exposure through logs:** `ValidateModelConfig` writes the
    full model configuration to the server log at INFO level, and per-response
    log lines are emitted for every request. Operators who place sensitive
